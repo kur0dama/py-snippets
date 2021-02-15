@@ -27,6 +27,16 @@ import re
 
 
 def find_dupes(in_list, return_dupe_recs_only=False):
+    """
+    Takes a list and returns a dictionary identifying the count of occurrences of each distinct element in the list
+    Required arguments:
+        in_list: a list to be checked for duplicates; may contain multiple types
+    Optional arguments:
+        return_dupe_recs_only: if True, function returns a dictionary containing only elements occurring more than once;
+                                if False, function returns a dictionary containing all elements with their counts
+    Returns:
+        A dict in the format { distinct element: count of element in list }
+    """
     dupe_map = { elem: 0 for elem in in_list }
     for elem in in_list:
         dupe_map[elem] = dupe_map[elem]+1
@@ -37,17 +47,27 @@ def find_dupes(in_list, return_dupe_recs_only=False):
 
 
 def clean_colnames(col_list):
-    dupes = find_dupes(col_list, True) # find any duplicate values in input list
+    """
+    Cleans column names in a pandas DataFrame (follows SQL format rules).
+    Required arguments:
+        col_list: a list-like of column name strings; typically pandas.DataFrame.columns
+    Returns:
+        A list of transformed strings that can be directly assigned back to pandas.DataFrame.columns
+    Notes:
+        In the event of duplicate values (either because input list contained duplicates, or because
+        differentiating information was removed during string-cleaning process, function will alter
+        output strings to ensure list contains only distinct values.
+    """
     process_dict = {} # to preserve initial order, all cleaning and substitutions will be performed in a temporary dict
     for col_order, header in enumerate(col_list): # initial string cleaning
         step1 = re.findall('([a-zA-Z0-9]+)',header)
         step2 = str.upper('_'.join(step1))
         step3 = '_' + step2 if step2[0] in [ str(i) for i in range(0,10) ] else step2
         process_dict[col_order] = [header, step3]
+    dupes = find_dupes([ val[1] for val in process_dict.values() ], True)  # find any duplicate values in output list
     for dupe_key in dupes.keys(): # process duplicate values and change to distinct strings
-        recode_recs = { key: val for key, val in process_dict.items() if val[0] == dupe_key }
-        for i, elem in enumerate(recode_recs.items()):
-            recode_key, recode_val_list = elem[0], elem[1]
-            process_dict[recode_key][1] = recode_val_list[1] + '_{:0d}'.format(i+1)
+        recode_recs = { key: val for key, val in process_dict.items() if val[1] == dupe_key }
+        for i, recode_key in enumerate(recode_recs.keys()):
+            process_dict[recode_key][1] = process_dict[recode_key][1] + '_{:0d}'.format(i+1)
     out_list = [ val[1] for val in process_dict.values() ] # return list of cleaned strings as output
     return out_list
